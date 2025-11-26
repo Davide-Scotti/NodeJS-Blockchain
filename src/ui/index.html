@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Security Event Ledger</title>
+    <style>
+      html, body { height: 100%; }
+      body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 1.5rem; background: #0f172a; color: #e5e7eb; overflow: hidden; }
+      h1, h2 { color: #fbbf24; }
+      label { display: block; margin-top: 0.5rem; }
+      input, textarea, select { width: 100%; padding: 0.4rem; margin-top: 0.25rem; border-radius: 4px; border: 1px solid #4b5563; background: #020617; color: #e5e7eb; }
+      button { margin-top: 0.5rem; padding: 0.45rem 0.9rem; border-radius: 4px; border: none; background: #22c55e; color: #022c22; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+      button.secondary { background: #38bdf8; color: #082f49; }
+      button:disabled { opacity: 0.6; cursor: default; }
+      .row { display: flex; flex-wrap: wrap; gap: 1.5rem; max-width: 1200px; margin: 0 auto; height: calc(100vh - 120px); box-sizing: border-box; }
+      .col-left { flex: 0 0 360px; max-width: 360px; display: flex; flex-direction: column; gap: 1rem; overflow: hidden; }
+      .col-right { flex: 1; min-width: 280px; display: flex; flex-direction: column; overflow: hidden; }
+      .card { background: #020617; border-radius: 8px; padding: 1rem; border: 1px solid #1f2937; }
+      .card-scroll { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+      pre { background: #020617; padding: 0.75rem; border-radius: 6px; overflow: auto; border: 1px solid #111827; font-size: 0.85rem; }
+      .status-ok { color: #4ade80; }
+      .status-bad { color: #f97373; }
+      small { color: #9ca3af; }
+      .chain-tree { flex: 1; min-height: 0; max-height: none; overflow: auto; border-radius: 6px; border: 1px solid #111827; padding: 0.5rem 0.75rem; background: #020617; }
+      .block-node { border-left: 2px solid #1f2937; margin-left: 0.5rem; padding-left: 0.75rem; margin-bottom: 0.75rem; }
+      .block-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; }
+      .block-index { font-weight: 600; color: #fbbf24; }
+      .block-hash { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.7rem; color: #9ca3af; }
+      .event-list { margin-top: 0.5rem; margin-left: 0.25rem; border-left: 1px dashed #374151; padding-left: 0.5rem; }
+      .event-item { margin-bottom: 0.35rem; font-size: 0.8rem; }
+      .event-type { display: inline-block; padding: 0.05rem 0.4rem; border-radius: 999px; font-weight: 600; margin-right: 0.35rem; }
+      .event-type.info { background: #1d4ed8; color: #dbeafe; }
+      .event-type.high { background: #b91c1c; color: #fee2e2; }
+      .event-type.medium { background: #c2410c; color: #ffedd5; }
+      .event-source { color: #a5b4fc; }
+      .event-timestamp { color: #6b7280; margin-left: 0.35rem; }
+      .alerts-list { max-height: 220px; overflow: auto; margin-top: 0.5rem; border-radius: 6px; border: 1px solid #111827; padding: 0.4rem 0.6rem; background: #020617; }
+      .alert-item { font-size: 0.8rem; margin-bottom: 0.35rem; }
+      .muted { color: #9ca3af; font-size: 0.75rem; }
+      .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.25rem 0.75rem; font-size: 0.8rem; }
+      .stats-label { color: #9ca3af; }
+      .stats-value { font-weight: 600; }
+      .config-list { font-size: 0.8rem; }
+      .config-list li { margin-bottom: 0.2rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Security Event Ledger</h1>
+    <p><small>Blockchain-based, tamper-evident log of security and integrity events.</small></p>
+
+    <div class="row">
+      <div class="col-left">
+        <div class="card">
+          <h2>Security overview</h2>
+          <div class="stats">
+            <div><span class="stats-label">Blocks:</span> <span id="stat-blocks" class="stats-value">-</span></div>
+            <div><span class="stats-label">File changes:</span> <span id="stat-file-changes" class="stats-value">-</span></div>
+            <div><span class="stats-label">Network changes:</span> <span id="stat-net-changes" class="stats-value">-</span></div>
+            <div><span class="stats-label">Account changes:</span> <span id="stat-account-changes" class="stats-value">-</span></div>
+            <div><span class="stats-label">Errors:</span> <span id="stat-errors" class="stats-value">-</span></div>
+          </div>
+          <p class="muted" style="margin-top: 0.5rem;">Recent alerts:</p>
+          <div id="alerts-list" class="alerts-list">No alerts yet.</div>
+        </div>
+
+        <div class="card">
+          <h2>Manual controls</h2>
+          <button type="button" id="btn-scan-full">Run full scan</button>
+          <button type="button" id="btn-scan-files" class="secondary">Scan files only</button>
+          <button type="button" id="btn-scan-network" class="secondary">Scan network only</button>
+          <button type="button" id="btn-scan-accounts" class="secondary">Scan accounts only</button>
+          <p id="controls-status" class="muted"></p>
+        </div>
+
+        <div class="card">
+          <h2>Current configuration</h2>
+          <p class="muted">Values read from server-side config. You can update the monitored root folders below.</p>
+          <ul class="config-list">
+            <li>Interval: <span id="cfg-interval">-</span> ms</li>
+            <li>Roots:
+              <ul id="cfg-roots"></ul>
+            </li>
+            <li>Excluded dirs:
+              <ul id="cfg-excludes"></ul>
+            </li>
+          </ul>
+          <label style="margin-top: 0.75rem;">
+            Edit roots (one per line)
+            <textarea id="cfg-roots-input" rows="4" placeholder="C:\\path\\to\\folder"></textarea>
+          </label>
+          <button type="button" id="btn-save-roots">Save roots</button>
+          <p id="cfg-status" class="muted"></p>
+        </div>
+      </div>
+
+      <div class="col-right">
+        <div class="card card-scroll">
+          <h2>Ledger status</h2>
+          <p>Health: <span id="health-text">loading...</span></p>
+          <p>Pending events: <span id="pending-count">0</span></p>
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.25rem;">
+            <button type="button" id="refresh-btn" class="secondary">Refresh</button>
+            <button type="button" id="btn-verify" class="secondary">Validate chain</button>
+            <button type="button" id="btn-mine" class="secondary">Mine pending events</button>
+          </div>
+          <h2 style="margin-top: 1.0rem;">Chain</h2>
+          <div id="chain-tree" class="chain-tree">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      async function fetchJSON(url, options) {
+        const res = await fetch(url, options);
+        const text = await res.text();
+        try {
+          const data = text ? JSON.parse(text) : null;
+          if (!res.ok) {
+            const err = new Error(data && data.error ? data.error : res.statusText);
+            err.status = res.status;
+            throw err;
+          }
+          return data;
+        } catch (e) {
+          if (!res.ok) throw e;
+          return null;
+        }
+      }
+
+      function renderConfig(config) {
+        const intervalEl = document.getElementById("cfg-interval");
+        const rootsEl = document.getElementById("cfg-roots");
+        const excludesEl = document.getElementById("cfg-excludes");
+        const rootsInput = document.getElementById("cfg-roots-input");
+
+        rootsEl.innerHTML = "";
+        excludesEl.innerHTML = "";
+
+        if (!config) {
+          intervalEl.textContent = "-";
+          if (rootsInput) rootsInput.value = "";
+          return;
+        }
+
+        intervalEl.textContent = config.intervalMs ?? "-";
+
+        if (rootsInput) {
+          rootsInput.value = (config.roots || []).join("\n");
+        }
+
+        (config.roots || []).forEach((r) => {
+          const li = document.createElement("li");
+          li.textContent = r;
+          rootsEl.appendChild(li);
+        });
+
+        (config.excludeDirs || []).forEach((d) => {
+          const li = document.createElement("li");
+          li.textContent = d;
+          excludesEl.appendChild(li);
+        });
+      }
+
+      function renderChainTree(chainPayload) {
+        const container = document.getElementById("chain-tree");
+        if (!container) return;
+        container.innerHTML = "";
+
+        if (!chainPayload || !Array.isArray(chainPayload.chain)) {
+          container.textContent = "No chain data";
+          return;
+        }
+
+        for (const block of chainPayload.chain) {
+          const blockNode = document.createElement("div");
+          blockNode.className = "block-node";
+
+          const header = document.createElement("div");
+          header.className = "block-header";
+
+          const left = document.createElement("div");
+          const indexSpan = document.createElement("span");
+          indexSpan.className = "block-index";
+          indexSpan.textContent = "Block #" + block.index;
+          left.appendChild(indexSpan);
+
+          const tsSpan = document.createElement("span");
+          tsSpan.className = "event-timestamp";
+          tsSpan.textContent = block.timestamp || "";
+          left.appendChild(document.createTextNode(" "));
+          left.appendChild(tsSpan);
+
+          const hashSpan = document.createElement("span");
+          hashSpan.className = "block-hash";
+          const shortHash = (block.hash || "").slice(0, 12);
+          hashSpan.textContent = shortHash ? "# " + shortHash + "…" : "# genesis";
+
+          header.appendChild(left);
+          header.appendChild(hashSpan);
+          blockNode.appendChild(header);
+
+          const eventsContainer = document.createElement("div");
+          eventsContainer.className = "event-list";
+
+          const events = Array.isArray(block.data) ? block.data : [block.data];
+          for (const ev of events) {
+            if (!ev) continue;
+            const item = document.createElement("div");
+            item.className = "event-item";
+
+            const typeSpan = document.createElement("span");
+            typeSpan.className = "event-type info";
+            const sev = (ev.severity || "info").toLowerCase();
+            typeSpan.classList.add(sev);
+            typeSpan.textContent = ev.type || "event";
+
+            const srcSpan = document.createElement("span");
+            srcSpan.className = "event-source";
+            srcSpan.textContent = ev.source ? "@ " + ev.source : "";
+
+            const tsEvSpan = document.createElement("span");
+            tsEvSpan.className = "event-timestamp";
+            tsEvSpan.textContent = ev.timestamp || "";
+
+            item.appendChild(typeSpan);
+            if (ev.message) {
+              item.appendChild(document.createTextNode(" " + ev.message));
+            }
+            if (ev.source) {
+              item.appendChild(document.createTextNode(" "));
+              item.appendChild(srcSpan);
+            }
+            if (ev.timestamp) {
+              item.appendChild(tsEvSpan);
+            }
+
+            eventsContainer.appendChild(item);
+          }
+
+          blockNode.appendChild(eventsContainer);
+          container.appendChild(blockNode);
+        }
+      }
+
+      function renderSummary(chainPayload) {
+        const statBlocks = document.getElementById("stat-blocks");
+        const statFileChanges = document.getElementById("stat-file-changes");
+        const statNetChanges = document.getElementById("stat-net-changes");
+        const statAccountChanges = document.getElementById("stat-account-changes");
+        const statErrors = document.getElementById("stat-errors");
+        const alertsList = document.getElementById("alerts-list");
+
+        alertsList.innerHTML = "";
+
+        if (!chainPayload || !Array.isArray(chainPayload.chain)) {
+          statBlocks.textContent = "0";
+          statFileChanges.textContent = "0";
+          statNetChanges.textContent = "0";
+          statAccountChanges.textContent = "0";
+          statErrors.textContent = "0";
+          alertsList.textContent = "No alerts yet.";
+          return;
+        }
+
+        const blocks = chainPayload.chain;
+        statBlocks.textContent = String(blocks.length);
+
+        let fileChanges = 0;
+        let netChanges = 0;
+        let accountChanges = 0;
+        let errors = 0;
+        const alerts = [];
+
+        for (let i = blocks.length - 1; i >= 0; i -= 1) {
+          const block = blocks[i];
+          const events = Array.isArray(block.data) ? block.data : [block.data];
+
+          for (const ev of events) {
+            if (!ev || !ev.type) continue;
+            const t = ev.type;
+
+            if (t === "file_integrity_change") fileChanges += 1;
+            if (t === "network_port_change") netChanges += 1;
+            if (t === "account_membership_change") accountChanges += 1;
+            if (t.endsWith("_error")) errors += 1;
+
+            const sev = (ev.severity || "info").toLowerCase();
+            if (sev !== "info" || t.endsWith("_change") || t.endsWith("_error")) {
+              alerts.push({
+                blockIndex: block.index,
+                type: t,
+                severity: sev,
+                message: ev.message || "",
+                source: ev.source || "",
+                timestamp: ev.timestamp || block.timestamp || "",
+              });
+            }
+          }
+        }
+
+        statFileChanges.textContent = String(fileChanges);
+        statNetChanges.textContent = String(netChanges);
+        statAccountChanges.textContent = String(accountChanges);
+        statErrors.textContent = String(errors);
+
+        if (alerts.length === 0) {
+          alertsList.textContent = "No alerts yet.";
+          return;
+        }
+
+        alerts.slice(0, 10).forEach((a) => {
+          const div = document.createElement("div");
+          div.className = "alert-item";
+
+          const typeSpan = document.createElement("span");
+          typeSpan.className = "event-type " + (a.severity || "info");
+          typeSpan.textContent = a.type;
+
+          const tsSpan = document.createElement("span");
+          tsSpan.className = "event-timestamp";
+          tsSpan.textContent = a.timestamp;
+
+          div.appendChild(typeSpan);
+          if (a.message) {
+            div.appendChild(document.createTextNode(" " + a.message));
+          }
+          if (a.source) {
+            const src = document.createElement("span");
+            src.className = "event-source";
+            src.textContent = " @ " + a.source;
+            div.appendChild(src);
+          }
+          div.appendChild(tsSpan);
+
+          alertsList.appendChild(div);
+        });
+      }
+
+      async function refreshStatus() {
+        const healthEl = document.getElementById("health-text");
+        const pendingCountEl = document.getElementById("pending-count");
+
+        try {
+          const [health, pending, chain, config] = await Promise.all([
+            fetchJSON("/health"),
+            fetchJSON("/pending"),
+            fetchJSON("/chain"),
+            fetchJSON("/config"),
+          ]);
+
+          if (health) {
+            healthEl.textContent = health.valid ? "VALID" : "INVALID";
+            healthEl.className = health.valid ? "status-ok" : "status-bad";
+          }
+
+          if (pending) {
+            pendingCountEl.textContent = pending.count ?? 0;
+          }
+
+          if (chain) {
+            renderChainTree(chain);
+            renderSummary(chain);
+          }
+
+          renderConfig(config);
+        } catch (err) {
+          healthEl.textContent = "Error: " + err.message;
+          healthEl.className = "status-bad";
+        }
+      }
+
+      async function triggerScan(type) {
+        const statusEl = document.getElementById("controls-status");
+        statusEl.textContent = "Running " + type + " scan...";
+        try {
+          await fetchJSON("/scan/" + type, { method: "POST" });
+          statusEl.textContent = "Scan queued successfully.";
+          await refreshStatus();
+        } catch (err) {
+          statusEl.textContent = "Error: " + err.message;
+        }
+      }
+
+      async function saveRoots() {
+        const input = document.getElementById("cfg-roots-input");
+        const status = document.getElementById("cfg-status");
+        if (!input || !status) return;
+
+        const lines = input.value.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0);
+        if (lines.length === 0) {
+          status.textContent = "Please enter at least one folder.";
+          return;
+        }
+
+        status.textContent = "Saving roots...";
+        try {
+          const updated = await fetchJSON("/config/roots", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ roots: lines }),
+          });
+          status.textContent = "Roots updated successfully.";
+          renderConfig(updated);
+        } catch (err) {
+          status.textContent = "Error: " + (err && err.message ? err.message : "unable to save roots");
+        }
+      }
+
+      async function validateChain() {
+        const healthEl = document.getElementById("health-text");
+        try {
+          const result = await fetchJSON("/verify");
+          if (result) {
+            healthEl.textContent = result.valid ? "VALID" : "INVALID";
+            healthEl.className = result.valid ? "status-ok" : "status-bad";
+          }
+        } catch (err) {
+          healthEl.textContent = "Error: " + err.message;
+          healthEl.className = "status-bad";
+        }
+      }
+
+      async function minePending() {
+        const pendingCountEl = document.getElementById("pending-count");
+        try {
+          await fetchJSON("/mine", { method: "POST" });
+          await refreshStatus();
+        } catch (err) {
+          pendingCountEl.textContent = "Error";
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("refresh-btn").addEventListener("click", refreshStatus);
+        document.getElementById("btn-verify").addEventListener("click", validateChain);
+        document.getElementById("btn-mine").addEventListener("click", minePending);
+        document.getElementById("btn-scan-full").addEventListener("click", () => triggerScan("full"));
+        document.getElementById("btn-scan-files").addEventListener("click", () => triggerScan("files"));
+        document.getElementById("btn-scan-network").addEventListener("click", () => triggerScan("network"));
+        document.getElementById("btn-scan-accounts").addEventListener("click", () => triggerScan("accounts"));
+        document.getElementById("btn-save-roots").addEventListener("click", saveRoots);
+        refreshStatus();
+      });
+    </script>
+  </body>
+</html>
