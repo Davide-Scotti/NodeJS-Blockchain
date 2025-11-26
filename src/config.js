@@ -9,7 +9,7 @@ export const BLOCKCHAIN_CONFIG = {
 export const INTEGRITY_CONFIG = {
   intervalMs: 60_000,
   roots: [
-    "C:\\Users\\DSCOTTI\\dev\\NodeJS-Blockchain",
+    "C:\\",
   ],
-  excludeDirs: ["node_modules", ".git", ".vscode", "dist", "build"],
+  excludeDirs: ["node_modules", ".git", ".vscode", "dist", "build", ".vs"],
 };

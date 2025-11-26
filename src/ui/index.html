@@ -4,24 +4,81 @@
     <meta charset="UTF-8" />
     <title>Security Event Ledger</title>
     <style>
+      :root { box-sizing: border-box; }
+      *, *::before, *::after { box-sizing: inherit; }
       html, body { height: 100%; }
-      body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 1.5rem; background: #0f172a; color: #e5e7eb; overflow: hidden; }
-      h1, h2 { color: #fbbf24; }
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        margin: 0;
+        background: #050712;
+        color: #e5e7eb;
+        overflow: hidden;
+      }
+      h1, h2 { color: #f9e076; }
+      h1 { font-size: 1.8rem; margin: 0; font-weight: 600; }
+      h2 { font-size: 1.1rem; margin: 0 0 0.25rem 0; font-weight: 500; }
       label { display: block; margin-top: 0.5rem; }
       input, textarea, select { width: 100%; padding: 0.4rem; margin-top: 0.25rem; border-radius: 4px; border: 1px solid #4b5563; background: #020617; color: #e5e7eb; }
-      button { margin-top: 0.5rem; padding: 0.45rem 0.9rem; border-radius: 4px; border: none; background: #22c55e; color: #022c22; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
-      button.secondary { background: #38bdf8; color: #082f49; }
+      button {
+        margin-top: 0.5rem;
+        padding: 0.45rem 0.9rem;
+        border-radius: 4px;
+        border: 1px solid #334155;
+        background: #0f172a;
+        color: #e5e7eb;
+        font-weight: 500;
+        cursor: pointer;
+        font-size: 0.85rem;
+      }
+      button.secondary { background: #1d4ed8; border-color: #2563eb; color: #e5e7eb; }
       button:disabled { opacity: 0.6; cursor: default; }
-      .row { display: flex; flex-wrap: wrap; gap: 1.5rem; max-width: 1200px; margin: 0 auto; height: calc(100vh - 120px); box-sizing: border-box; }
-      .col-left { flex: 0 0 360px; max-width: 360px; display: flex; flex-direction: column; gap: 1rem; overflow: hidden; }
-      .col-right { flex: 1; min-width: 280px; display: flex; flex-direction: column; overflow: hidden; }
-      .card { background: #020617; border-radius: 8px; padding: 1rem; border: 1px solid #1f2937; }
-      .card-scroll { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+      button:hover:not(:disabled) { background: #111827; }
+      .app-shell {
+        height: 100vh;
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .app-header {
+        width: 100%;
+        max-width: 1200px;
+        margin-bottom: 0.5rem;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 320px minmax(0, 1fr);
+        gap: 1.5rem;
+        width: 100%;
+        max-width: 1200px;
+        flex: 1;
+        min-height: 0;
+      }
+
+      .col-left {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .col-right {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .card { background: #020617; border-radius: 10px; padding: 1rem; border: 1px solid #111827; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.45); }
+      .card-scroll { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
       pre { background: #020617; padding: 0.75rem; border-radius: 6px; overflow: auto; border: 1px solid #111827; font-size: 0.85rem; }
       .status-ok { color: #4ade80; }
-      .status-bad { color: #f97373; }
+      .status-bad { color: #fca5a5; }
       small { color: #9ca3af; }
-      .chain-tree { flex: 1; min-height: 0; max-height: none; overflow: auto; border-radius: 6px; border: 1px solid #111827; padding: 0.5rem 0.75rem; background: #020617; }
+      .app-subtitle { margin: 0.15rem 0 0; font-size: 0.85rem; }
+      .chain-tree { flex: 1; min-height: 0; overflow: auto; border-radius: 8px; border: 1px solid #111827; padding: 0.5rem 0.75rem; background: #020617; }
       .block-node { border-left: 2px solid #1f2937; margin-left: 0.5rem; padding-left: 0.75rem; margin-bottom: 0.75rem; }
       .block-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; }
       .block-index { font-weight: 600; color: #fbbf24; }
@@ -31,24 +88,71 @@
       .event-type { display: inline-block; padding: 0.05rem 0.4rem; border-radius: 999px; font-weight: 600; margin-right: 0.35rem; }
       .event-type.info { background: #1d4ed8; color: #dbeafe; }
       .event-type.high { background: #b91c1c; color: #fee2e2; }
-      .event-type.medium { background: #c2410c; color: #ffedd5; }
+      .event-type.medium { background: #c05621; color: #ffedd5; }
       .event-source { color: #a5b4fc; }
       .event-timestamp { color: #6b7280; margin-left: 0.35rem; }
-      .alerts-list { max-height: 220px; overflow: auto; margin-top: 0.5rem; border-radius: 6px; border: 1px solid #111827; padding: 0.4rem 0.6rem; background: #020617; }
+      .alerts-list { max-height: 220px; overflow-y: auto; margin-top: 0.5rem; border-radius: 6px; border: 1px solid #111827; padding: 0.4rem 0.6rem; background: #020617; }
       .alert-item { font-size: 0.8rem; margin-bottom: 0.35rem; }
       .muted { color: #9ca3af; font-size: 0.75rem; }
       .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.25rem 0.75rem; font-size: 0.8rem; }
       .stats-label { color: #9ca3af; }
       .stats-value { font-weight: 600; }
-      .config-list { font-size: 0.8rem; }
-      .config-list li { margin-bottom: 0.2rem; }
+      .config-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        min-height: 0;
+      }
+
+      .config-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.5rem 1rem;
+        font-size: 0.8rem;
+      }
+
+      .config-meta {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+
+      .config-pill {
+        padding: 0.15rem 0.4rem;
+        border-radius: 999px;
+        background: #020617;
+        border: 1px solid #1f2937;
+        font-size: 0.75rem;
+        color: #9ca3af;
+      }
+
+      .config-scroller {
+        max-height: 140px;
+        overflow-y: auto;
+        border-radius: 8px;
+        border: 1px solid #111827;
+        padding: 0.4rem 0.6rem;
+        background: #020617;
+      }
+
+      .config-list { font-size: 0.8rem; list-style: none; padding-left: 0; margin: 0; }
+      .config-list li { margin-bottom: 0.15rem; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+      .config-list code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.75rem; }
+
+      .config-editor-label { font-size: 0.8rem; margin-top: 0.25rem; display: block; }
+      .config-textarea { width: 100%; resize: vertical; min-height: 60px; max-height: 120px; font-size: 0.8rem; }
+      .config-footer { font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem; }
+      .hidden { display: none !important; }
     </style>
   </head>
   <body>
-    <h1>Security Event Ledger</h1>
-    <p><small>Blockchain-based, tamper-evident log of security and integrity events.</small></p>
+    <div class="app-shell">
+      <header class="app-header">
+        <h1>Security Event Ledger</h1>
+        <p class="app-subtitle"><small>Blockchain-based, tamper-evident log of security and integrity events.</small></p>
+      </header>
 
-    <div class="row">
+      <div class="row">
       <div class="col-left">
         <div class="card">
           <h2>Security overview</h2>
@@ -63,33 +167,46 @@
           <div id="alerts-list" class="alerts-list">No alerts yet.</div>
         </div>
 
-        <div class="card">
-          <h2>Manual controls</h2>
-          <button type="button" id="btn-scan-full">Run full scan</button>
-          <button type="button" id="btn-scan-files" class="secondary">Scan files only</button>
-          <button type="button" id="btn-scan-network" class="secondary">Scan network only</button>
-          <button type="button" id="btn-scan-accounts" class="secondary">Scan accounts only</button>
-          <p id="controls-status" class="muted"></p>
-        </div>
+        <div class="card config-card">
+          <div>
+            <h2>Current configuration</h2>
+            <p class="muted">Runtime settings for integrity checks.</p>
+          </div>
 
-        <div class="card">
-          <h2>Current configuration</h2>
-          <p class="muted">Values read from server-side config. You can update the monitored root folders below.</p>
-          <ul class="config-list">
-            <li>Interval: <span id="cfg-interval">-</span> ms</li>
-            <li>Roots:
-              <ul id="cfg-roots"></ul>
-            </li>
-            <li>Excluded dirs:
-              <ul id="cfg-excludes"></ul>
-            </li>
-          </ul>
-          <label style="margin-top: 0.75rem;">
-            Edit roots (one per line)
-            <textarea id="cfg-roots-input" rows="4" placeholder="C:\\path\\to\\folder"></textarea>
-          </label>
-          <button type="button" id="btn-save-roots">Save roots</button>
-          <p id="cfg-status" class="muted"></p>
+          <div class="config-layout">
+            <div class="config-meta">
+              <span class="config-pill">Interval <span id="cfg-interval">-</span> ms</span>
+              <span class="config-pill"><strong id="cfg-roots-count">0</strong> roots</span>
+              <span class="config-pill"><strong id="cfg-excludes-count">0</strong> excluded dirs</span>
+              <button type="button" id="btn-toggle-excludes" class="secondary" style="margin-left:auto; margin-top:0; padding-inline:0.6rem; font-size:0.78rem;">Manage excluded dirs</button>
+            </div>
+
+            <div>
+              <span class="muted" style="font-size: 0.8rem;">Roots</span>
+              <div class="config-scroller">
+                <ul id="cfg-roots" class="config-list"></ul>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="config-editor-la          <div>
+            <label class="config-editor-label">
+              Edit roots (one per line)
+              <textarea id="cfg-roots-input" class="config-textarea" placeholder="C:\\path\\to\\folder"></textarea>
+            </label>
+            <button type="button" id="btn-save-roots">Save roots</button>
+            <p id="cfg-status" class="config-footer"></p>
+          </div>
+
+          <div id="cfg-excludes-editor" class="hidden">
+            <label class="config-editor-label">
+              Edit excluded directories (one per line)
+              <textarea id="cfg-excludes-input" class="config-textarea" placeholder="node_modules"></textarea>
+            </label>
+            <button type="button" id="btn-save-excludes">Save excluded dirs</button>
+            <p id="cfg-excludes-status" class="config-footer"></p>
+          </div>
         </div>
       </div>
 
@@ -104,7 +221,7 @@
             <button type="button" id="btn-mine" class="secondary">Mine pending events</button>
           </div>
           <h2 style="margin-top: 1.0rem;">Chain</h2>
-          <div id="chain-tree" class="chain-tree">Loading...</div>
+        <div id="chain-tree" class="chain-tree">Loading...</div>
         </div>
       </div>
     </div>
@@ -130,34 +247,42 @@
       function renderConfig(config) {
         const intervalEl = document.getElementById("cfg-interval");
         const rootsEl = document.getElementById("cfg-roots");
-        const excludesEl = document.getElementById("cfg-excludes");
         const rootsInput = document.getElementById("cfg-roots-input");
+        const excludesInput = document.getElementById("cfg-excludes-input");
+        const rootsCountEl = document.getElementById("cfg-roots-count");
+        const excludesCountEl = document.getElementById("cfg-excludes-count");
 
         rootsEl.innerHTML = "";
-        excludesEl.innerHTML = "";
 
         if (!config) {
           intervalEl.textContent = "-";
           if (rootsInput) rootsInput.value = "";
+          if (excludesInput) excludesInput.value = "";
+          if (rootsCountEl) rootsCountEl.textContent = "0";
+          if (excludesCountEl) excludesCountEl.textContent = "0";
           return;
         }
 
         intervalEl.textContent = config.intervalMs ?? "-";
 
+        const roots = config.roots || [];
+        const excludes = config.excludeDirs || [];
+
         if (rootsInput) {
-          rootsInput.value = (config.roots || []).join("\n");
+          rootsInput.value = roots.join("\n");
         }
+        if (excludesInput) {
+          excludesInput.value = excludes.join("\n");
+        }
+        if (rootsCountEl) rootsCountEl.textContent = String(roots.length);
+        if (excludesCountEl) excludesCountEl.textContent = String(excludes.length);
 
-        (config.roots || []).forEach((r) => {
+        roots.forEach((r) => {
           const li = document.createElement("li");
-          li.textContent = r;
+          const code = document.createElement("code");
+          code.textContent = r;
+          li.appendChild(code);
           rootsEl.appendChild(li);
-        });
-
-        (config.excludeDirs || []).forEach((d) => {
-          const li = document.createElement("li");
-          li.textContent = d;
-          excludesEl.appendChild(li);
         });
       }
 
@@ -369,18 +494,6 @@
         }
       }
 
-      async function triggerScan(type) {
-        const statusEl = document.getElementById("controls-status");
-        statusEl.textContent = "Running " + type + " scan...";
-        try {
-          await fetchJSON("/scan/" + type, { method: "POST" });
-          statusEl.textContent = "Scan queued successfully.";
-          await refreshStatus();
-        } catch (err) {
-          statusEl.textContent = "Error: " + err.message;
-        }
-      }
-
       async function saveRoots() {
         const input = document.getElementById("cfg-roots-input");
         const status = document.getElementById("cfg-status");
@@ -430,15 +543,40 @@
         }
       }
 
+      function toggleExcludesEditor() {
+        const editor = document.getElementById("cfg-excludes-editor");
+        if (!editor) return;
+        editor.classList.toggle("hidden");
+      }
+
+      async function saveExcludes() {
+        const input = document.getElementById("cfg-excludes-input");
+        const status = document.getElementById("cfg-excludes-status");
+        if (!input || !status) return;
+
+        const lines = input.value.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0);
+
+        status.textContent = "Saving excluded dirs...";
+        try {
+          const updated = await fetchJSON("/config/excludes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ excludeDirs: lines }),
+          });
+          status.textContent = "Excluded dirs updated.";
+          renderConfig(updated);
+        } catch (err) {
+          status.textContent = "Error: " + (err && err.message ? err.message : "unable to save excludes");
+        }
+      }
+
       document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("refresh-btn").addEventListener("click", refreshStatus);
         document.getElementById("btn-verify").addEventListener("click", validateChain);
         document.getElementById("btn-mine").addEventListener("click", minePending);
-        document.getElementById("btn-scan-full").addEventListener("click", () => triggerScan("full"));
-        document.getElementById("btn-scan-files").addEventListener("click", () => triggerScan("files"));
-        document.getElementById("btn-scan-network").addEventListener("click", () => triggerScan("network"));
-        document.getElementById("btn-scan-accounts").addEventListener("click", () => triggerScan("accounts"));
         document.getElementById("btn-save-roots").addEventListener("click", saveRoots);
+        document.getElementById("btn-toggle-excludes").addEventListener("click", toggleExcludesEditor);
+        document.getElementById("btn-save-excludes").addEventListener("click", saveExcludes);
         refreshStatus();
       });
     </script>

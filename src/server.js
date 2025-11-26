@@ -199,6 +199,27 @@ app.post("/config/roots", (req, res) => {
   });
 });
 
+// Update excluded directories list at runtime (UI-driven)
+app.post("/config/excludes", (req, res) => {
+  const { excludeDirs } = req.body || {};
+
+  if (!Array.isArray(excludeDirs)) {
+    return res.status(400).json({ error: "'excludeDirs' must be an array of strings" });
+  }
+
+  const cleaned = excludeDirs
+    .map((d) => (typeof d === "string" ? d.trim() : ""))
+    .filter((d) => d.length > 0);
+
+  INTEGRITY_CONFIG.excludeDirs = cleaned;
+
+  return res.json({
+    intervalMs: INTEGRITY_CONFIG.intervalMs,
+    roots: INTEGRITY_CONFIG.roots ?? [],
+    excludeDirs: INTEGRITY_CONFIG.excludeDirs,
+  });
+});
+
 // Fallback for unknown routes
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
