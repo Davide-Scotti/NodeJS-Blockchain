@@ -1,0 +1,22 @@
+{
+  "name": "nodejs-blockchain",
+  "version": "0.1.0",
+  "description": "Educational blockchain implementation in Node.js",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test",
+    "lint": "eslint src test",
+    "lint:fix": "eslint src test --fix"
+  },
+  "keywords": [
+    "blockchain",
+    "nodejs"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^9.0.0"
+  }
+}
